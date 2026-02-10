@@ -112,8 +112,6 @@ public class MemberController {
 		map.put("companyName", companyName);
 		map.put("companyTel", companyTel);
 		
-		System.out.println(member);
-		
 		return ResponseEntity.ok(map);
 	}
 	@RequestMapping("/logout")
