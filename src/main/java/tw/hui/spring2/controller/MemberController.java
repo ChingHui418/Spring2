@@ -1,8 +1,11 @@
 package tw.hui.spring2.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import tw.hui.spring2.config.MyConfig;
+import jakarta.servlet.http.HttpSession;
 import tw.hui.spring2.dto.User;
 import tw.hui.spring2.entity.Member;
 import tw.hui.spring2.service.MemberService;
@@ -18,9 +22,15 @@ import tw.hui.spring2.service.MemberService;
 @RestController
 @RequestMapping("/api/members")
 public class MemberController {
+
+    private final MyConfig myConfig;
 	
 	@Autowired
 	private MemberService service;
+
+    MemberController(MyConfig myConfig) {
+        this.myConfig = myConfig;
+    }
 	/*
 	 * request: /exist?email=xxx
 	 * response: true/false
@@ -46,4 +56,74 @@ public class MemberController {
 		Map<String,Boolean> map = Map.of("success", isSuccess);
 		return ResponseEntity.ok(map);
 	}
+	
+	/*
+	 * reqquest: {email:xxx,passwd:xxx}
+	 * response:{"success": true/false}
+	 */
+	@PostMapping("/login")
+	public ResponseEntity<Map<String,Boolean>> login(
+			@RequestBody Map<String,String> body) {
+		String email = body.get("email");
+		String passwd = body.get("passwd");
+		
+//		boolean isSuccess = service.login(email, passwd);
+		boolean isSuccess = service.loginV2(email, passwd);
+		
+		Map<String,Boolean> map = Map.of("success", isSuccess);
+		return ResponseEntity.ok(map);
+//		System.out.println(email + ":" + passwd);
+	}
+	
+	@PostMapping("/loginV3")
+	public ResponseEntity<Map<String,Boolean>> login(
+			@RequestBody Map<String,String> body,
+			HttpSession session) {
+		String email = body.get("email");
+		String passwd = body.get("passwd");
+		
+		Member member = service.loginV3(email, passwd);
+		
+		Map<String,Boolean> map;
+		if(member != null) {
+			session.setAttribute("member", member);
+			map = Map.of("success", true);
+		}else {
+			session.invalidate();
+			map = Map.of("success", false);
+		}
+		return ResponseEntity.ok(map);
+	}
+	
+	@Autowired
+	@Qualifier("companyName")
+	private String companyName;
+	
+	@Value("${company.tel}")
+	private String companyTel;
+	
+	@PostMapping("/status")
+	public ResponseEntity<Map<String, Object>> status(HttpSession session) {
+		Object member = session.getAttribute("member");
+		
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("success", member != null);
+		map.put("member", member);
+		map.put("companyName", companyName);
+		map.put("companyTel", companyTel);
+		
+		System.out.println(member);
+		
+		return ResponseEntity.ok(map);
+	}
+	@RequestMapping("/logout")
+	public ResponseEntity<Map<String, String>> logout(HttpSession session) {
+		session.invalidate();
+		
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("success", "ok");
+		
+		return ResponseEntity.ok(map);
+	}
+
 }
